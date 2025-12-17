@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} golang:1.23-alpine AS builder
+FROM --platform=${BUILDPLATFORM} golang:1.24-alpine AS builder
 LABEL maintainer="Tom Helander <thomas.helander@gmail.com>"
 
 RUN apk add --no-cache make curl git
