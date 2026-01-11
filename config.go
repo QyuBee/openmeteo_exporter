@@ -133,7 +133,12 @@ func (l *LocationConfig) Validate() error {
 			return err
 		}
 	}
-	if l.Weather == nil && l.AirQuality == nil {
+	if l.SatelliteRadiation != nil {
+		if err := l.SatelliteRadiation.Validate(l); err != nil {
+			return err
+		}
+	}
+	if l.Weather == nil && l.AirQuality == nil && l.SatelliteRadiation == nil {
 		return fmt.Errorf("invalid location, no weather or air_quality sections defined: %s", l.Name)
 	}
 
@@ -186,6 +191,20 @@ func (a *AirQualityConfig) Validate(l *LocationConfig) error {
 	for _, name := range a.Variables {
 		if !IsValidVariable("airquality", name) {
 			return fmt.Errorf("invalid current air quality variable, %s, for location: %s", name, l.Name)
+		}
+	}
+
+	return nil
+}
+
+func (s *SatelliteRadiationConfig) Validate(l *LocationConfig) error {
+	if len(s.Variables) == 0 {
+		return fmt.Errorf("invalid satellite radiation config, no entries for variables: %s", l.Name)
+	}
+
+	for _, name := range s.Variables {
+		if !IsValidVariable("satellite_radiation", name) {
+			return fmt.Errorf("invalid satellite radiation variable, %s, for location: %s", name, l.Name)
 		}
 	}
 
