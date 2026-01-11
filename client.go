@@ -31,7 +31,7 @@ import (
 const (
 	weatherApi            = "https://api.open-meteo.com/v1/forecast"
 	airqualityApi         = "https://air-quality-api.open-meteo.com/v1/air-quality"
-	satelliteRadiationApi = "https://satellite-radiation-api.open-meteo.com/v1/satellite-radiation"
+	satelliteRadiationApi = "https://satellite-api.open-meteo.com/v1/archive"
 )
 
 // Mapping of variable name to description. Used to validate the list of
@@ -119,19 +119,19 @@ var (
 		"us_aqi_carbon_monoxide":        "United States Air Quality Index (AQI) calculated for different particulate matter and gases individually. The consolidated us_aqi returns the maximum of all individual indices. Ranges from 0-50 (good), 51-100 (moderate), 101-150 (unhealthy for sensitive groups), 151-200 (unhealthy), 201-300 (very unhealthy) and 301-500 (hazardous).",
 	}
 	SatelliteRadiationVariables = map[string]string{
-		"shortwave_solar_radiation_GHI": "Global horizontal irradiance (hourly average)",
-		"direct_solar_radiation":        "Direct solar radiation",
-		"diffuse_solar_radiation":       "Diffuse solar radiation",
-		"direct_normal_irradiance_DNI":  "Direct normal irradiance",
-		"global_tilted_radiation_GTI":   "Global tilted radiation",
-		"terrestrial_solar_radiation":   "Terrestrial solar radiation",
+		"shortwave_radiation":      "Global horizontal irradiance (hourly average)",
+		"direct_radiation":         "Direct solar radiation",
+		"diffuse_radiation":        "Diffuse solar radiation",
+		"direct_normal_irradiance": "Direct normal irradiance",
+		"global_tilted_irradiance": "Global tilted radiation",
+		"terrestrial_radiation":    "Terrestrial solar radiation",
 
-		"shortwave_solar_radiation_GHI_instant": "Global horizontal irradiance (instant)",
-		"direct_solar_radiation_instant":        "Direct solar radiation (instant)",
-		"diffuse_solar_radiation_instant":       "Diffuse solar radiation (instant)",
-		"direct_normal_irradiance_DNI_instant":  "Direct normal irradiance (instant)",
-		"global_tilted_radiation_GTI_instant":   "Global tilted radiation (instant)",
-		"terrestrial_solar_radiation_instant":   "Terrestrial solar radiation (instant)",
+		"shortwave_radiation_instant":      "Global horizontal irradiance (instant)",
+		"direct_radiation_instant":         "Direct solar radiation (instant)",
+		"diffuse_radiation_instant":        "Diffuse solar radiation (instant)",
+		"direct_normal_irradiance_instant": "Direct normal irradiance (instant)",
+		"global_tilted_irradiance_instant": "Global tilted radiation (instant)",
+		"terrestrial_radiation_instant":    "Terrestrial solar radiation (instant)",
 
 		"is_day":            "1 if daytime, 0 if night",
 		"sunshine_duration": "Sunshine duration (seconds)",
@@ -146,6 +146,12 @@ type ResponseUnits struct {
 	Time      string `json:"time"`
 	Interval  string `json:"interval"`
 	Variables map[string]interface{}
+}
+
+type ResponseHourlyValues struct {
+	Time      []string `json:"time"`
+	Interval  string   `json:"interval"`
+	Variables map[string][]interface{}
 }
 
 type ResponseValues struct {
@@ -171,8 +177,15 @@ type WeatherResponse struct {
 }
 
 type SatelliteRadiationResponse struct {
-	BaseResponse
-	Elevation float64 `json:"elevation"`
+	Latitude             float64              `json:"latitude"`
+	Longitude            float64              `json:"longitude"`
+	GenerationtimeMs     float32              `json:"generationtime_ms"`
+	UTCOffsetSeconds     int                  `json:"utc_offset_seconds"`
+	Timezone             string               `json:"timezone"`
+	TimezoneAbbreviation string               `json:"timezone_abbreviation"`
+	HourlyUnits          ResponseUnits        `json:"hourly_units"`
+	Hourly               ResponseHourlyValues `json:"hourly"`
+	Elevation            float64              `json:"elevation"`
 }
 
 func GetVariableDesc(category, name string) (string, error) {
@@ -327,21 +340,24 @@ func (c OpenMeteoClient) GetAirQuality(l *LocationConfig) (*BaseResponse, error)
 }
 
 func (c OpenMeteoClient) GetSatelliteRadiation(l *LocationConfig) (*SatelliteRadiationResponse, error) {
-	url, err := url.Parse(satelliteRadiationApi)
+	urlRequest, err := url.Parse(satelliteRadiationApi)
 	if err != nil {
 		level.Error(logger).Log("msg", "Failed to form response URL", "err", err)
 		return nil, err
 	}
 
-	values := buildBaseValues(l, l.SatelliteRadiation.Variables)
+	values := &url.Values{}
+	values.Add("latitude", fmt.Sprintf("%f", l.Latitude))
+	values.Add("longitude", fmt.Sprintf("%f", l.Longitude))
 	values.Add("timezone", l.Timezone)
 	values.Add("temporal_resolution", l.SatelliteRadiation.TemporalResolution)
 	values.Add("tilt", fmt.Sprintf("%f", l.SatelliteRadiation.Tilt))
 	values.Add("azimuth", fmt.Sprintf("%f", l.SatelliteRadiation.Azimuth))
-	values.Add("model", l.SatelliteRadiation.Model)
-	url.RawQuery = values.Encode()
+	values.Add("models", strings.Join(l.SatelliteRadiation.Models, ","))
+	values.Add("hourly", strings.Join(l.SatelliteRadiation.HourlyRadiationVariables, ","))
+	urlRequest.RawQuery = values.Encode()
 
-	body, err := c.doRequest(url.String(), values)
+	body, err := c.doRequest(urlRequest.String(), values)
 	if err != nil {
 		return nil, err
 	}
@@ -358,17 +374,26 @@ func (c OpenMeteoClient) GetSatelliteRadiation(l *LocationConfig) (*SatelliteRad
 		return nil, err
 	}
 
-	resp.Current.Variables = make(map[string]interface{})
-	resp.CurrentUnits.Variables = make(map[string]interface{})
+	resp.Hourly.Variables = make(map[string][]interface{})
+	resp.HourlyUnits.Variables = make(map[string]interface{})
 
-	omitValues := []string{"time", "interval"}
-	for name, value := range bareResp["current"].(map[string]interface{}) {
-		if slices.Contains(omitValues, name) {
-			continue
+	if hourlyData, ok := bareResp["hourly"].(map[string]interface{}); ok {
+		for name, value := range hourlyData {
+			// ignore "time" si tu veux seulement les valeurs
+			if name == "time" {
+				continue
+			}
+
+			if arr, ok := value.([]interface{}); ok {
+				resp.Hourly.Variables[name] = arr
+			}
 		}
+	}
 
-		resp.Current.Variables[name] = value
-		resp.CurrentUnits.Variables[name] = bareResp["current_units"].(map[string]interface{})[name]
+	if hourlyUnits, ok := bareResp["hourly_units"].(map[string]interface{}); ok {
+		for name, unit := range hourlyUnits {
+			resp.HourlyUnits.Variables[name] = unit
+		}
 	}
 
 	return &resp, nil

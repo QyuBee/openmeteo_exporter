@@ -43,11 +43,11 @@ type WeatherConfig struct {
 }
 
 type SatelliteRadiationConfig struct {
-	Variables          []string `yaml:"variables"`
-	TemporalResolution string   `yaml:"temporal_resolution"`
-	Tilt               float64  `yaml:"tilt"`
-	Azimuth            float64  `yaml:"azimuth"`
-	Model              string   `yaml:"model"`
+	HourlyRadiationVariables []string `yaml:"hourly_radiation_variables"`
+	TemporalResolution       string   `yaml:"temporal_resolution"`
+	Tilt                     float64  `yaml:"tilt"`
+	Azimuth                  float64  `yaml:"azimuth"`
+	Models                   []string `yaml:"models"`
 }
 
 type LocationConfig struct {
@@ -139,7 +139,7 @@ func (l *LocationConfig) Validate() error {
 		}
 	}
 	if l.Weather == nil && l.AirQuality == nil && l.SatelliteRadiation == nil {
-		return fmt.Errorf("invalid location, no weather or air_quality sections defined: %s", l.Name)
+		return fmt.Errorf("invalid location, no weather, air_quality, or satellite_radiation sections defined: %s", l.Name)
 	}
 
 	return nil
@@ -198,11 +198,11 @@ func (a *AirQualityConfig) Validate(l *LocationConfig) error {
 }
 
 func (s *SatelliteRadiationConfig) Validate(l *LocationConfig) error {
-	if len(s.Variables) == 0 {
-		return fmt.Errorf("invalid satellite radiation config, no entries for variables: %s", l.Name)
+	if len(s.HourlyRadiationVariables) == 0 {
+		return fmt.Errorf("invalid satellite radiation config, no entries for hourly_radiation_variables: %s", l.Name)
 	}
 
-	for _, name := range s.Variables {
+	for _, name := range s.HourlyRadiationVariables {
 		if !IsValidVariable("satellite_radiation", name) {
 			return fmt.Errorf("invalid satellite radiation variable, %s, for location: %s", name, l.Name)
 		}

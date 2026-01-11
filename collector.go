@@ -17,6 +17,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -88,7 +89,7 @@ func (c OpenMeteoCollector) Collect(ch chan<- prometheus.Metric) {
 		}
 
 		if loc.SatelliteRadiation != nil {
-			satelliteCollector := SatelliteRadiationCollector{Client: c.Client, Location: &loc}
+			satelliteCollector := SatelliteRadiationCollector{Client: c.Client, Location: &loc, Today: time.Now().Format("2006-01-02")}
 			satelliteCollector.Collect(ch)
 		}
 	}
