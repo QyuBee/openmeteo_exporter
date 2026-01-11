@@ -74,9 +74,15 @@ func main() {
 		if *listVariables == "weather" {
 			title = "Weather Variables"
 			vars = WeatherVariables
-		} else {
+		} else if *listVariables == "airquality" {
 			title = "Air Quality Variables"
 			vars = AirQualityVariables
+		} else if *listVariables == "satellite_radiation" {
+			title = "Satellite Radiation Variables"
+			vars = SatelliteRadiationVariables
+		} else {
+			level.Error(logger).Log("msg", fmt.Sprintf("Unknown variable type: %s", *listVariables))
+			os.Exit(1)
 		}
 
 		fmt.Println(title)

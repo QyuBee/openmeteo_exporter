@@ -42,3 +42,17 @@ locations:
       variables:
         - pm2_5
         - european_aqi
+---
+locations:
+  - name: Paris
+    latitude: 48.85
+    longitude: 2.35
+    timezone: Europe/Paris
+
+    satellite_radiation:
+      variables:
+        - global_tilted_irradiance
+      temporal_resolution: "native"
+      tilt: 30
+      azimuth: 90
+      model: "eumetsat_lsa_saf_msg"

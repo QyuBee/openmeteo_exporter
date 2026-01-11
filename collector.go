@@ -44,6 +44,13 @@ var (
 		[]string{"location"},
 		nil,
 	)
+
+	satelliteGenerationTimeDesc = prometheus.NewDesc(
+		prometheus.BuildFQName(namespace, "satellite_radiation", "generation_time_ms"),
+		"The time it took to generate the satellite radiation response, in milliseconds.",
+		[]string{"location"},
+		nil,
+	)
 )
 
 type OpenMeteoCollector struct {
@@ -54,6 +61,8 @@ type OpenMeteoCollector struct {
 func (c OpenMeteoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- infoDesc
 	ch <- weatherGenerationTimeDesc
+	ch <- airqualityGenerationTimeDesc
+	ch <- satelliteGenerationTimeDesc
 }
 
 func (c OpenMeteoCollector) Collect(ch chan<- prometheus.Metric) {
@@ -76,6 +85,11 @@ func (c OpenMeteoCollector) Collect(ch chan<- prometheus.Metric) {
 		if loc.AirQuality != nil {
 			airqualityCollector := AirQualityCollector{Client: c.Client, Location: &loc}
 			airqualityCollector.Collect(ch)
+		}
+
+		if loc.SatelliteRadiation != nil {
+			satelliteCollector := SatelliteRadiationCollector{Client: c.Client, Location: &loc}
+			satelliteCollector.Collect(ch)
 		}
 	}
 }

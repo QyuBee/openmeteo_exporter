@@ -29,8 +29,9 @@ import (
 )
 
 const (
-	weatherApi    = "https://api.open-meteo.com/v1/forecast"
-	airqualityApi = "https://air-quality-api.open-meteo.com/v1/air-quality"
+	weatherApi            = "https://api.open-meteo.com/v1/forecast"
+	airqualityApi         = "https://air-quality-api.open-meteo.com/v1/air-quality"
+	satelliteRadiationApi = "https://satellite-radiation-api.open-meteo.com/v1/satellite-radiation"
 )
 
 // Mapping of variable name to description. Used to validate the list of
@@ -117,6 +118,25 @@ var (
 		"us_aqi_sulphur_dioxide":        "United States Air Quality Index (AQI) calculated for different particulate matter and gases individually. The consolidated us_aqi returns the maximum of all individual indices. Ranges from 0-50 (good), 51-100 (moderate), 101-150 (unhealthy for sensitive groups), 151-200 (unhealthy), 201-300 (very unhealthy) and 301-500 (hazardous).",
 		"us_aqi_carbon_monoxide":        "United States Air Quality Index (AQI) calculated for different particulate matter and gases individually. The consolidated us_aqi returns the maximum of all individual indices. Ranges from 0-50 (good), 51-100 (moderate), 101-150 (unhealthy for sensitive groups), 151-200 (unhealthy), 201-300 (very unhealthy) and 301-500 (hazardous).",
 	}
+	SatelliteRadiationVariables = map[string]string{
+		"shortwave_solar_radiation_GHI": "Global horizontal irradiance (hourly average)",
+		"direct_solar_radiation":        "Direct solar radiation",
+		"diffuse_solar_radiation":       "Diffuse solar radiation",
+		"direct_normal_irradiance_DNI":  "Direct normal irradiance",
+		"global_tilted_radiation_GTI":   "Global tilted radiation",
+		"terrestrial_solar_radiation":   "Terrestrial solar radiation",
+
+		"shortwave_solar_radiation_GHI_instant": "Global horizontal irradiance (instant)",
+		"direct_solar_radiation_instant":        "Direct solar radiation (instant)",
+		"diffuse_solar_radiation_instant":       "Diffuse solar radiation (instant)",
+		"direct_normal_irradiance_DNI_instant":  "Direct normal irradiance (instant)",
+		"global_tilted_radiation_GTI_instant":   "Global tilted radiation (instant)",
+		"terrestrial_solar_radiation_instant":   "Terrestrial solar radiation (instant)",
+
+		"is_day":            "1 if daytime, 0 if night",
+		"sunshine_duration": "Sunshine duration (seconds)",
+	}
+
 	ValidTemperatureUnits   = []string{"fahrenheit", "celsius"}
 	ValidWindSpeedUnits     = []string{"kmh", "mph", "ms", "kn"}
 	ValidPrecipitationUnits = []string{"mm", "inch"}
@@ -150,13 +170,20 @@ type WeatherResponse struct {
 	Elevation float64 `json:"elevation"`
 }
 
+type SatelliteRadiationResponse struct {
+	BaseResponse
+	Elevation float64 `json:"elevation"`
+}
+
 func GetVariableDesc(category, name string) (string, error) {
 	var val string
 	var ok bool
 	if category == "weather" {
 		val, ok = WeatherVariables[name]
-	} else {
+	} else if category == "airquality" {
 		val, ok = AirQualityVariables[name]
+	} else if category == "satellite_radiation" {
+		val, ok = SatelliteRadiationVariables[name]
 	}
 
 	if !ok {
@@ -279,6 +306,54 @@ func (c OpenMeteoClient) GetAirQuality(l *LocationConfig) (*BaseResponse, error)
 	}
 
 	resp := BaseResponse{}
+	if err = json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+
+	resp.Current.Variables = make(map[string]interface{})
+	resp.CurrentUnits.Variables = make(map[string]interface{})
+
+	omitValues := []string{"time", "interval"}
+	for name, value := range bareResp["current"].(map[string]interface{}) {
+		if slices.Contains(omitValues, name) {
+			continue
+		}
+
+		resp.Current.Variables[name] = value
+		resp.CurrentUnits.Variables[name] = bareResp["current_units"].(map[string]interface{})[name]
+	}
+
+	return &resp, nil
+}
+
+func (c OpenMeteoClient) GetSatelliteRadiation(l *LocationConfig) (*SatelliteRadiationResponse, error) {
+	url, err := url.Parse(satelliteRadiationApi)
+	if err != nil {
+		level.Error(logger).Log("msg", "Failed to form response URL", "err", err)
+		return nil, err
+	}
+
+	values := buildBaseValues(l, l.SatelliteRadiation.Variables)
+	values.Add("timezone", l.Timezone)
+	values.Add("temporal_resolution", l.SatelliteRadiation.TemporalResolution)
+	values.Add("tilt", fmt.Sprintf("%f", l.SatelliteRadiation.Tilt))
+	values.Add("azimuth", fmt.Sprintf("%f", l.SatelliteRadiation.Azimuth))
+	values.Add("model", l.SatelliteRadiation.Model)
+	url.RawQuery = values.Encode()
+
+	body, err := c.doRequest(url.String(), values)
+	if err != nil {
+		return nil, err
+	}
+
+	level.Debug(logger).Log("body", string(body))
+
+	var bareResp map[string]interface{}
+	if err = json.Unmarshal(body, &bareResp); err != nil {
+		return nil, err
+	}
+
+	resp := SatelliteRadiationResponse{}
 	if err = json.Unmarshal(body, &resp); err != nil {
 		return nil, err
 	}

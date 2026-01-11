@@ -42,13 +42,22 @@ type WeatherConfig struct {
 	Variables         []string `yaml:"variables"`
 }
 
+type SatelliteRadiationConfig struct {
+	Variables          []string `yaml:"variables"`
+	TemporalResolution string   `yaml:"temporal_resolution"`
+	Tilt               float64  `yaml:"tilt"`
+	Azimuth            float64  `yaml:"azimuth"`
+	Model              string   `yaml:"model"`
+}
+
 type LocationConfig struct {
-	Name       string            `yaml:"name"`
-	Latitude   float64           `yaml:"latitude"`
-	Longitude  float64           `yaml:"longitude"`
-	Timezone   string            `yaml:"timezone"`
-	Weather    *WeatherConfig    `yaml:"weather"`
-	AirQuality *AirQualityConfig `yaml:"air_quality"`
+	Name               string                    `yaml:"name"`
+	Latitude           float64                   `yaml:"latitude"`
+	Longitude          float64                   `yaml:"longitude"`
+	Timezone           string                    `yaml:"timezone"`
+	Weather            *WeatherConfig            `yaml:"weather"`
+	AirQuality         *AirQualityConfig         `yaml:"air_quality"`
+	SatelliteRadiation *SatelliteRadiationConfig `yaml:"satellite_radiation"`
 }
 
 type Config struct {
