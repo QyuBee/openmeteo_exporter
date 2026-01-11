@@ -1,10 +1,7 @@
 name: Releases
 
 on:
-  release:
-    types:
-      - published
-      - edited
+  workflow_dispatch:
 
 permissions:
   contents: write
