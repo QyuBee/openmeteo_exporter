@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -34,13 +35,6 @@ func (c SatelliteRadiationCollector) Collect(ch chan<- prometheus.Metric) {
 		c.hourly = make(map[string]map[string]float64)
 	}
 
-	ch <- prometheus.MustNewConstMetric(
-		satelliteGenerationTimeDesc,
-		prometheus.GaugeValue,
-		float64(satelliteResp.GenerationtimeMs),
-		c.Location.Name,
-	)
-
 	for _, name := range c.Location.SatelliteRadiation.HourlyRadiationVariables {
 		if _, ok := c.hourly[name]; !ok {
 			c.hourly[name] = make(map[string]float64)
@@ -60,12 +54,24 @@ func (c SatelliteRadiationCollector) Collect(ch chan<- prometheus.Metric) {
 		desc := prometheus.NewDesc(
 			prometheus.BuildFQName(namespace, "satellite_radiation", fmt.Sprintf("%s_%s", name, units)),
 			description,
-			[]string{"location", "time"},
+			[]string{"location"},
 			nil,
 		)
 
 		for t, v := range c.hourly[name] {
-			ch <- prometheus.MustNewConstMetric(desc, prometheus.GaugeValue, v, c.Location.Name, t)
+			m := prometheus.MustNewConstMetric(
+				desc,
+				prometheus.GaugeValue,
+				v,
+				c.Location.Name,
+			)
+
+			ts, _ := time.Parse(
+				"2006-01-02T15:04",
+				t,
+			)
+
+			ch <- prometheus.NewMetricWithTimestamp(ts, m)
 		}
 	}
 }
