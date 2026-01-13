@@ -149,8 +149,8 @@ type ResponseUnits struct {
 }
 
 type ResponseHourlyValues struct {
-	Time      []string `json:"time"`
-	Interval  string   `json:"interval"`
+	Time      []int64 `json:"time"`
+	Interval  string  `json:"interval"`
 	Variables map[string][]interface{}
 }
 
@@ -258,7 +258,7 @@ func (c OpenMeteoClient) GetWeather(l *LocationConfig) (*WeatherResponse, error)
 	}
 
 	values := buildBaseValues(l, l.Weather.Variables)
-	values.Add("timezone", l.Timezone)
+	values.Add("timezone", l.TimeFormat)
 	values.Add("temperature_unit", l.Weather.TemperatureUnit)
 	values.Add("wind_speed_unit", l.Weather.WindSpeedUnit)
 	values.Add("precipitation_unit", l.Weather.PrecipitationUnit)
@@ -349,7 +349,7 @@ func (c OpenMeteoClient) GetSatelliteRadiation(l *LocationConfig) (*SatelliteRad
 	values := &url.Values{}
 	values.Add("latitude", fmt.Sprintf("%f", l.Latitude))
 	values.Add("longitude", fmt.Sprintf("%f", l.Longitude))
-	values.Add("timezone", l.Timezone)
+	values.Add("timeformat", l.TimeFormat)
 	values.Add("temporal_resolution", l.SatelliteRadiation.TemporalResolution)
 	values.Add("tilt", fmt.Sprintf("%f", l.SatelliteRadiation.Tilt))
 	values.Add("azimuth", fmt.Sprintf("%f", l.SatelliteRadiation.Azimuth))

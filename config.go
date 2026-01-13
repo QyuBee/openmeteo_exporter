@@ -54,7 +54,7 @@ type LocationConfig struct {
 	Name               string                    `yaml:"name"`
 	Latitude           float64                   `yaml:"latitude"`
 	Longitude          float64                   `yaml:"longitude"`
-	Timezone           string                    `yaml:"timezone"`
+	TimeFormat         string                    `yaml:"timeformat"`
 	Weather            *WeatherConfig            `yaml:"weather"`
 	AirQuality         *AirQualityConfig         `yaml:"air_quality"`
 	SatelliteRadiation *SatelliteRadiationConfig `yaml:"satellite_radiation"`
@@ -119,8 +119,8 @@ func (l *LocationConfig) Validate() error {
 
 	// Use auto if no timezone is set to enable automatic detection based on
 	// the location: https://open-meteo.com/en/docs#api-documentation
-	if len(l.Timezone) == 0 {
-		l.Timezone = "auto"
+	if len(l.TimeFormat) == 0 {
+		l.TimeFormat = "auto"
 	}
 
 	if l.Weather != nil {

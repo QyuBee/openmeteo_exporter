@@ -14,7 +14,7 @@ type SatelliteRadiationCollector struct {
 	Location *LocationConfig
 	Today    string
 	mu       sync.Mutex
-	hourly   map[string]map[string]float64
+	hourly   map[string]map[int64]float64
 }
 
 func (c SatelliteRadiationCollector) Collect(ch chan<- prometheus.Metric) {
@@ -32,12 +32,12 @@ func (c SatelliteRadiationCollector) Collect(ch chan<- prometheus.Metric) {
 	defer c.mu.Unlock()
 
 	if c.hourly == nil {
-		c.hourly = make(map[string]map[string]float64)
+		c.hourly = make(map[string]map[int64]float64)
 	}
 
 	for _, name := range c.Location.SatelliteRadiation.HourlyRadiationVariables {
 		if _, ok := c.hourly[name]; !ok {
-			c.hourly[name] = make(map[string]float64)
+			c.hourly[name] = make(map[int64]float64)
 		}
 
 		for i, t := range satelliteResp.Hourly.Time {
@@ -66,10 +66,9 @@ func (c SatelliteRadiationCollector) Collect(ch chan<- prometheus.Metric) {
 				c.Location.Name,
 			)
 
-			ts, _ := time.Parse(
-				"2006-01-02T15:04",
-				t,
-			)
+			ts := time.Unix(t, 0)
+
+			level.Debug(logger).Log(ts)
 
 			ch <- prometheus.NewMetricWithTimestamp(ts, m)
 		}

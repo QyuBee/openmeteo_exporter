@@ -75,7 +75,7 @@ func (c OpenMeteoCollector) Collect(ch chan<- prometheus.Metric) {
 			loc.Name,
 			fmt.Sprintf("%f", loc.Latitude),
 			fmt.Sprintf("%f", loc.Longitude),
-			loc.Timezone,
+			loc.TimeFormat,
 		)
 
 		if loc.Weather != nil {
